@@ -1,0 +1,19 @@
+[package]
+name = "swhid-py"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+description = "Python bindings for the swhid-rs SWHID v1.2 reference implementation"
+repository = "https://github.com/apache/swhid-py"
+
+[lib]
+name = "swhid_py"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = { version = "0.23", features = ["extension-module"] }
+swhid = "0.2"
+
+[features]
+default = []
+git = ["swhid/git"]
