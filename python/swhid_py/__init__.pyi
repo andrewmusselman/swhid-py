@@ -181,7 +181,12 @@ def directory_id(
     """
     ...
 
-def verify(path: str, expected: str) -> bool:
+def verify(
+    path: str,
+    expected: str,
+    follow_symlinks: bool = False,
+    exclude_suffixes: Optional[list[str]] = None,
+) -> bool:
     """
     Verify that a file or directory matches an expected SWHID.
 
@@ -191,6 +196,8 @@ def verify(path: str, expected: str) -> bool:
     Args:
         path: Filesystem path to a file or directory.
         expected: The SWHID string to compare against.
+        follow_symlinks: Whether to follow symlinks (default ``False``, directories only).
+        exclude_suffixes: File suffixes to skip (directories only).
 
     Returns:
         ``True`` if the computed SWHID matches, ``False`` otherwise.

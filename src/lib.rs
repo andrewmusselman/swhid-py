@@ -292,18 +292,31 @@ fn directory_id(
 /// Args:
 ///     path: Filesystem path to a file or directory.
 ///     expected: The SWHID string to compare against.
+///     follow_symlinks: Whether to follow symlinks (default False, directories only).
+///     exclude_suffixes: File suffixes to skip (directories only).
 ///
 /// Returns:
 ///     ``True`` if the computed SWHID matches, ``False`` otherwise.
 #[pyfunction]
-fn verify(path: &str, expected: &str) -> PyResult<bool> {
+#[pyo3(signature = (path, expected, follow_symlinks=false, exclude_suffixes=None))]
+fn verify(
+    path: &str,
+    expected: &str,
+    follow_symlinks: bool,
+    exclude_suffixes: Option<Vec<String>>,
+) -> PyResult<bool> {
     let expected_swhid: swhid::Swhid = expected
         .parse()
         .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?;
 
     let p = PathBuf::from(path);
     let computed = if p.is_dir() {
+        let walk_opts = swhid::WalkOptions {
+            follow_symlinks,
+            exclude_suffixes: exclude_suffixes.unwrap_or_default(),
+        };
         swhid::DiskDirectoryBuilder::new(&p)
+            .with_options(walk_opts)
             .swhid()
             .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?
     } else {
