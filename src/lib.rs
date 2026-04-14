@@ -275,14 +275,28 @@ impl PyQualifiedSwhid {
 
     /// Return a new QualifiedSwhid with lines set.
     #[pyo3(signature = (start, end=None))]
-    fn with_lines(&self, start: u64, end: Option<u64>) -> Self {
-        PyQualifiedSwhid { inner: self.inner.clone().with_lines(swhid::LineRange { start, end }) }
+    fn with_lines(&self, start: u64, end: Option<u64>) -> PyResult<Self> {
+        if let Some(e) = end {
+            if e < start {
+                return Err(PyValueError::new_err(
+                    format!("lines end ({e}) must not be less than start ({start})")
+                ));
+            }
+        }
+        Ok(PyQualifiedSwhid { inner: self.inner.clone().with_lines(swhid::LineRange { start, end }) })
     }
 
     /// Return a new QualifiedSwhid with bytes set.
     #[pyo3(signature = (start, end=None))]
-    fn with_bytes(&self, start: u64, end: Option<u64>) -> Self {
-        PyQualifiedSwhid { inner: self.inner.clone().with_bytes(swhid::ByteRange { start, end }) }
+    fn with_bytes(&self, start: u64, end: Option<u64>) -> PyResult<Self> {
+        if let Some(e) = end {
+            if e < start {
+                return Err(PyValueError::new_err(
+                    format!("bytes end ({e}) must not be less than start ({start})")
+                ));
+            }
+        }
+        Ok(PyQualifiedSwhid { inner: self.inner.clone().with_bytes(swhid::ByteRange { start, end }) })
     }
 
     fn __str__(&self) -> String {

@@ -161,11 +161,19 @@ class QualifiedSwhid:
         ...
 
     def with_lines(self, start: int, end: Optional[int] = None) -> QualifiedSwhid:
-        """Return a copy with the ``lines`` qualifier set."""
+        """Return a copy with the ``lines`` qualifier set.
+
+        Raises:
+            ValueError: If *end* is less than *start*.
+        """
         ...
 
     def with_bytes(self, start: int, end: Optional[int] = None) -> QualifiedSwhid:
-        """Return a copy with the ``bytes`` qualifier set."""
+        """Return a copy with the ``bytes`` qualifier set.
+
+        Raises:
+            ValueError: If *end* is less than *start*.
+        """
         ...
 
     def __str__(self) -> str: ...
