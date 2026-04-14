@@ -206,6 +206,18 @@ impl PyQualifiedSwhid {
         self.inner.to_string()
     }
 
+    fn __eq__(&self, other: &PyQualifiedSwhid) -> bool {
+        self.inner == other.inner
+    }
+
+    fn __hash__(&self) -> u64 {
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        let mut h = DefaultHasher::new();
+        self.inner.to_string().hash(&mut h);
+        h.finish()
+    }
+
     fn __repr__(&self) -> String {
         format!("QualifiedSwhid('{}')", self.inner)
     }
