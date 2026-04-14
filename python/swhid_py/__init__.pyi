@@ -27,22 +27,26 @@ using PyO3, giving you native-speed hashing with a Pythonic API.
 
 from __future__ import annotations
 
-import enum
 from typing import Optional
 
-class ObjectType(enum.IntEnum):
+class ObjectType:
     """SWHID object type tag."""
 
-    Content = 0
+    Content: ObjectType
     """File content (``cnt``)."""
-    Directory = 1
+    Directory: ObjectType
     """Directory tree (``dir``)."""
-    Revision = 2
+    Revision: ObjectType
     """VCS commit / changeset (``rev``)."""
-    Release = 3
+    Release: ObjectType
     """VCS annotated tag / release (``rel``)."""
-    Snapshot = 4
+    Snapshot: ObjectType
     """Repository snapshot (``snp``)."""
+
+    def __eq__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
+    def __int__(self) -> int: ...
+    def __repr__(self) -> str: ...
 
     def tag(self) -> str:
         """Return the three-letter SWHID tag (e.g. ``"cnt"``)."""
