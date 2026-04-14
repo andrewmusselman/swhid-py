@@ -85,7 +85,7 @@ class TestContentId:
         assert content_id_from_file(str(p)) == content_id(b"Hello, World!")
 
     def test_from_file_missing(self):
-        with pytest.raises(ValueError, match="cannot read"):
+        with pytest.raises(OSError, match="cannot read"):
             content_id_from_file("/nonexistent/path/file.txt")
 
 
@@ -116,7 +116,7 @@ class TestDirectoryId:
         assert with_pyc != without_pyc
 
     def test_nonexistent_dir(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(OSError):
             directory_id("/nonexistent/path")
 
 

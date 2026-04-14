@@ -15,11 +15,18 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use pyo3::exceptions::PyValueError;
+use pyo3::exceptions::{PyOSError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use swhid::error::SwhidError;
 use std::path::PathBuf;
+
+fn swhid_err(e: SwhidError) -> PyErr {
+    match e {
+        SwhidError::Io(io_err) => PyOSError::new_err(io_err.to_string()),
+        other => PyValueError::new_err(other.to_string()),
+    }
+}
 
 // ---------------------------------------------------------------------------
 // ObjectType enum
@@ -102,7 +109,7 @@ impl PySwhid {
     fn new(swhid_str: &str) -> PyResult<Self> {
         let inner: swhid::Swhid = swhid_str
             .parse()
-            .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?;
+            .map_err(swhid_err)?;
         Ok(PySwhid { inner })
     }
 
@@ -162,7 +169,7 @@ impl PyQualifiedSwhid {
     fn new(s: &str) -> PyResult<Self> {
         let inner: swhid::QualifiedSwhid = s
             .parse()
-            .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?;
+            .map_err(swhid_err)?;
         Ok(PyQualifiedSwhid { inner })
     }
 
@@ -252,7 +259,7 @@ fn content_id(data: &[u8]) -> PySwhid {
 #[pyfunction]
 fn content_id_from_file(path: &str) -> PyResult<PySwhid> {
     let data = std::fs::read(path)
-        .map_err(|e| PyValueError::new_err(format!("cannot read {path}: {e}")))?;
+        .map_err(|e| PyOSError::new_err(format!("cannot read {path}: {e}")))?;
     Ok(content_id(&data))
 }
 
@@ -283,7 +290,7 @@ fn directory_id(
     let inner = swhid::DiskDirectoryBuilder::new(&path)
         .with_options(walk_opts)
         .swhid()
-        .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?;
+        .map_err(swhid_err)?;
     Ok(PySwhid { inner })
 }
 
@@ -307,7 +314,7 @@ fn verify(
 ) -> PyResult<bool> {
     let expected_swhid: swhid::Swhid = expected
         .parse()
-        .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?;
+        .map_err(swhid_err)?;
 
     let p = PathBuf::from(path);
     let computed = if p.is_dir() {
@@ -318,10 +325,10 @@ fn verify(
         swhid::DiskDirectoryBuilder::new(&p)
             .with_options(walk_opts)
             .swhid()
-            .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?
+            .map_err(swhid_err)?
     } else {
         let data = std::fs::read(&p)
-            .map_err(|e| PyValueError::new_err(format!("cannot read {path}: {e}")))?;
+            .map_err(|e| PyOSError::new_err(format!("cannot read {path}: {e}")))?;
         swhid::Content::from_bytes(data).swhid()
     };
 

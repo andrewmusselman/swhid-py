@@ -154,7 +154,7 @@ def content_id_from_file(path: str) -> Swhid:
         path: Filesystem path to the file.
 
     Raises:
-        ValueError: If the file cannot be read.
+        OSError: If the file cannot be read.
     """
     ...
 
@@ -177,7 +177,7 @@ def directory_id(
         exclude_suffixes: File suffixes to skip (e.g. ``[".pyc", ".o"]``).
 
     Raises:
-        ValueError: If the directory cannot be traversed.
+        OSError: If the directory cannot be traversed.
     """
     ...
 
@@ -203,6 +203,7 @@ def verify(
         ``True`` if the computed SWHID matches, ``False`` otherwise.
 
     Raises:
-        ValueError: If *expected* is not a valid SWHID or *path* cannot be read.
+        ValueError: If *expected* is not a valid SWHID.
+        OSError: If *path* cannot be read.
     """
     ...
