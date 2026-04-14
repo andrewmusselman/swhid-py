@@ -147,7 +147,7 @@ impl PySwhid {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         let mut h = DefaultHasher::new();
-        self.inner.to_string().hash(&mut h);
+        self.inner.hash(&mut h);
         h.finish()
     }
 }
