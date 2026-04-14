@@ -310,7 +310,7 @@ impl PyQualifiedSwhid {
     }
 
     fn __eq__(&self, other: &PyQualifiedSwhid) -> bool {
-        self.inner == other.inner
+        self.inner.to_string() == other.inner.to_string()
     }
 
     fn __hash__(&self) -> u64 {
