@@ -163,6 +163,12 @@ pub struct PyQualifiedSwhid {
     inner: swhid::QualifiedSwhid,
 }
 
+// QualifiedSwhid stores origin, visit, anchor, path, lines, and bytes as
+// private fields with no public getters — only core() is exposed.  As a
+// workaround we serialise to the canonical string form and re-parse the
+// qualifier we need.  This is correct (';' in values is percent-encoded, so
+// splitting on ';' is safe) but costs an allocation per access.  If swhid-rs
+// gains public getter methods, these helpers should be replaced.
 impl PyQualifiedSwhid {
     fn qualifier_raw(&self, key: &str) -> Option<String> {
         let s = self.inner.to_string();
