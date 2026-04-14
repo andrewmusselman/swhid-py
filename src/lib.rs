@@ -316,7 +316,7 @@ impl PyQualifiedSwhid {
     }
 
     fn __repr__(&self) -> String {
-        format!("QualifiedSwhid('{}')", self.inner)
+        format!("QualifiedSwhid(\"{}\")", self.inner)
     }
 }
 
