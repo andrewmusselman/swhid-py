@@ -114,6 +114,36 @@ class QualifiedSwhid:
         """The core SWHID (without qualifiers)."""
         ...
 
+    @property
+    def origin(self) -> Optional[str]:
+        """The origin URL, or ``None``."""
+        ...
+
+    @property
+    def visit(self) -> Optional[Swhid]:
+        """The visit SWHID, or ``None``."""
+        ...
+
+    @property
+    def anchor(self) -> Optional[Swhid]:
+        """The anchor SWHID, or ``None``."""
+        ...
+
+    @property
+    def path(self) -> Optional[str]:
+        """The path qualifier, or ``None``."""
+        ...
+
+    @property
+    def lines(self) -> Optional[tuple[int, Optional[int]]]:
+        """The lines qualifier as ``(start, end)`` or ``(start, None)``, or ``None``."""
+        ...
+
+    @property
+    def bytes(self) -> Optional[tuple[int, Optional[int]]]:
+        """The bytes qualifier as ``(start, end)`` or ``(start, None)``, or ``None``."""
+        ...
+
     def with_origin(self, url: str) -> QualifiedSwhid:
         """Return a copy with the ``origin`` qualifier set."""
         ...

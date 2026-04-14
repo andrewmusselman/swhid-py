@@ -15,6 +15,7 @@
 // specific language governing permissions and limitations
 // under the License.
 
+use percent_encoding::percent_decode_str;
 use pyo3::exceptions::{PyOSError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
@@ -162,6 +163,37 @@ pub struct PyQualifiedSwhid {
     inner: swhid::QualifiedSwhid,
 }
 
+impl PyQualifiedSwhid {
+    fn qualifier_raw(&self, key: &str) -> Option<String> {
+        let s = self.inner.to_string();
+        let (_, rest) = s.split_once(';')?;
+        for item in rest.split(';') {
+            if let Some((k, v)) = item.split_once('=') {
+                if k == key {
+                    return Some(v.to_string());
+                }
+            }
+        }
+        None
+    }
+
+    fn qualifier_decoded(&self, key: &str) -> Option<String> {
+        self.qualifier_raw(key).map(|v| {
+            percent_decode_str(&v)
+                .decode_utf8_lossy()
+                .into_owned()
+        })
+    }
+
+    fn qualifier_range(&self, key: &str) -> Option<(u64, Option<u64>)> {
+        let v = self.qualifier_raw(key)?;
+        match v.split_once('-') {
+            Some((a, b)) => Some((a.parse().ok()?, Some(b.parse().ok()?))),
+            None => Some((v.parse().ok()?, None)),
+        }
+    }
+}
+
 #[pymethods]
 impl PyQualifiedSwhid {
     /// Parse a qualified SWHID string.
@@ -179,6 +211,46 @@ impl PyQualifiedSwhid {
         PySwhid {
             inner: self.inner.core().clone(),
         }
+    }
+
+    /// The origin URL, or ``None``.
+    #[getter]
+    fn origin(&self) -> Option<String> {
+        self.qualifier_decoded("origin")
+    }
+
+    /// The visit SWHID, or ``None``.
+    #[getter]
+    fn visit(&self) -> Option<PySwhid> {
+        self.qualifier_raw("visit")
+            .and_then(|v| v.parse::<swhid::Swhid>().ok())
+            .map(|inner| PySwhid { inner })
+    }
+
+    /// The anchor SWHID, or ``None``.
+    #[getter]
+    fn anchor(&self) -> Option<PySwhid> {
+        self.qualifier_raw("anchor")
+            .and_then(|v| v.parse::<swhid::Swhid>().ok())
+            .map(|inner| PySwhid { inner })
+    }
+
+    /// The path qualifier, or ``None``.
+    #[getter]
+    fn path(&self) -> Option<String> {
+        self.qualifier_decoded("path")
+    }
+
+    /// The lines qualifier as ``(start, end)`` or ``(start, None)``, or ``None``.
+    #[getter]
+    fn lines(&self) -> Option<(u64, Option<u64>)> {
+        self.qualifier_range("lines")
+    }
+
+    /// The bytes qualifier as ``(start, end)`` or ``(start, None)``, or ``None``.
+    #[getter]
+    fn bytes(&self) -> Option<(u64, Option<u64>)> {
+        self.qualifier_range("bytes")
     }
 
     /// Return a new QualifiedSwhid with origin set.
