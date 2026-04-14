@@ -148,6 +148,14 @@ class QualifiedSwhid:
         """Return a copy with the ``origin`` qualifier set."""
         ...
 
+    def with_visit(self, id: Swhid) -> QualifiedSwhid:
+        """Return a copy with the ``visit`` qualifier set."""
+        ...
+
+    def with_anchor(self, id: Swhid) -> QualifiedSwhid:
+        """Return a copy with the ``anchor`` qualifier set."""
+        ...
+
     def with_path(self, path: str) -> QualifiedSwhid:
         """Return a copy with the ``path`` qualifier set."""
         ...

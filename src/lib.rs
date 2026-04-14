@@ -254,9 +254,18 @@ impl PyQualifiedSwhid {
     }
 
     /// Return a new QualifiedSwhid with origin set.
-    fn with_origin(&self, url: &str) -> PyResult<Self> {
-        let q = self.inner.clone().with_origin(url);
-        Ok(PyQualifiedSwhid { inner: q })
+    fn with_origin(&self, url: &str) -> Self {
+        PyQualifiedSwhid { inner: self.inner.clone().with_origin(url) }
+    }
+
+    /// Return a new QualifiedSwhid with visit set.
+    fn with_visit(&self, id: &PySwhid) -> Self {
+        PyQualifiedSwhid { inner: self.inner.clone().with_visit(id.inner.clone()) }
+    }
+
+    /// Return a new QualifiedSwhid with anchor set.
+    fn with_anchor(&self, id: &PySwhid) -> Self {
+        PyQualifiedSwhid { inner: self.inner.clone().with_anchor(id.inner.clone()) }
     }
 
     /// Return a new QualifiedSwhid with path set.
