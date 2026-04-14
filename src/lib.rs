@@ -269,25 +269,20 @@ impl PyQualifiedSwhid {
     }
 
     /// Return a new QualifiedSwhid with path set.
-    fn with_path(&self, path: &str) -> PyResult<Self> {
-        let q = self.inner.clone().with_path(path);
-        Ok(PyQualifiedSwhid { inner: q })
+    fn with_path(&self, path: &str) -> Self {
+        PyQualifiedSwhid { inner: self.inner.clone().with_path(path) }
     }
 
     /// Return a new QualifiedSwhid with lines set.
     #[pyo3(signature = (start, end=None))]
-    fn with_lines(&self, start: u64, end: Option<u64>) -> PyResult<Self> {
-        let range = swhid::LineRange { start, end };
-        let q = self.inner.clone().with_lines(range);
-        Ok(PyQualifiedSwhid { inner: q })
+    fn with_lines(&self, start: u64, end: Option<u64>) -> Self {
+        PyQualifiedSwhid { inner: self.inner.clone().with_lines(swhid::LineRange { start, end }) }
     }
 
     /// Return a new QualifiedSwhid with bytes set.
     #[pyo3(signature = (start, end=None))]
-    fn with_bytes(&self, start: u64, end: Option<u64>) -> PyResult<Self> {
-        let range = swhid::ByteRange { start, end };
-        let q = self.inner.clone().with_bytes(range);
-        Ok(PyQualifiedSwhid { inner: q })
+    fn with_bytes(&self, start: u64, end: Option<u64>) -> Self {
+        PyQualifiedSwhid { inner: self.inner.clone().with_bytes(swhid::ByteRange { start, end }) }
     }
 
     fn __str__(&self) -> String {
