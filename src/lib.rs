@@ -57,6 +57,10 @@ impl PyObjectType {
         }
     }
 
+    fn __hash__(&self) -> u64 {
+        self.clone() as u64
+    }
+
     fn __repr__(&self) -> String {
         format!("ObjectType.{}", match self {
             PyObjectType::Content => "Content",
