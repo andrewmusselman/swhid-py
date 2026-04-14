@@ -338,10 +338,14 @@ fn content_id(data: &[u8]) -> PySwhid {
 /// Returns:
 ///     A ``Swhid`` object.
 #[pyfunction]
-fn content_id_from_file(path: &str) -> PyResult<PySwhid> {
-    let data = std::fs::read(path)
-        .map_err(|e| PyOSError::new_err(format!("cannot read {path}: {e}")))?;
-    Ok(content_id(&data))
+fn content_id_from_file(py: Python<'_>, path: &str) -> PyResult<PySwhid> {
+    let owned = path.to_string();
+    let inner = py.allow_threads(|| {
+        let data = std::fs::read(&owned)
+            .map_err(|e| PyOSError::new_err(format!("cannot read {owned}: {e}")))?;
+        Ok::<_, PyErr>(swhid::Content::from_bytes(data).swhid())
+    })?;
+    Ok(PySwhid { inner })
 }
 
 /// Compute the SWHID for a directory tree.
@@ -359,6 +363,7 @@ fn content_id_from_file(path: &str) -> PyResult<PySwhid> {
 #[pyfunction]
 #[pyo3(signature = (root, follow_symlinks=false, exclude_suffixes=None))]
 fn directory_id(
+    py: Python<'_>,
     root: &str,
     follow_symlinks: bool,
     exclude_suffixes: Option<Vec<String>>,
@@ -368,10 +373,12 @@ fn directory_id(
         follow_symlinks,
         exclude_suffixes: exclude_suffixes.unwrap_or_default(),
     };
-    let inner = swhid::DiskDirectoryBuilder::new(&path)
-        .with_options(walk_opts)
-        .swhid()
-        .map_err(swhid_err)?;
+    let inner = py.allow_threads(|| {
+        swhid::DiskDirectoryBuilder::new(&path)
+            .with_options(walk_opts)
+            .swhid()
+            .map_err(swhid_err)
+    })?;
     Ok(PySwhid { inner })
 }
 
@@ -388,6 +395,7 @@ fn directory_id(
 #[pyfunction]
 #[pyo3(signature = (path, expected, follow_symlinks=false, exclude_suffixes=None))]
 fn verify(
+    py: Python<'_>,
     path: &str,
     expected: &str,
     follow_symlinks: bool,
@@ -398,20 +406,23 @@ fn verify(
         .map_err(swhid_err)?;
 
     let p = PathBuf::from(path);
-    let computed = if p.is_dir() {
-        let walk_opts = swhid::WalkOptions {
-            follow_symlinks,
-            exclude_suffixes: exclude_suffixes.unwrap_or_default(),
-        };
-        swhid::DiskDirectoryBuilder::new(&p)
-            .with_options(walk_opts)
-            .swhid()
-            .map_err(swhid_err)?
-    } else {
-        let data = std::fs::read(&p)
-            .map_err(|e| PyOSError::new_err(format!("cannot read {path}: {e}")))?;
-        swhid::Content::from_bytes(data).swhid()
-    };
+    let owned_path = path.to_string();
+    let computed = py.allow_threads(|| {
+        if p.is_dir() {
+            let walk_opts = swhid::WalkOptions {
+                follow_symlinks,
+                exclude_suffixes: exclude_suffixes.unwrap_or_default(),
+            };
+            swhid::DiskDirectoryBuilder::new(&p)
+                .with_options(walk_opts)
+                .swhid()
+                .map_err(swhid_err)
+        } else {
+            let data = std::fs::read(&p)
+                .map_err(|e| PyOSError::new_err(format!("cannot read {owned_path}: {e}")))?;
+            Ok(swhid::Content::from_bytes(data).swhid())
+        }
+    })?;
 
     Ok(computed == expected_swhid)
 }
