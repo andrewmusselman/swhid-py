@@ -14,23 +14,6 @@ This package wraps the MIT-licensed Rust reference implementation directly, side
 
 ## Installation
 
-### Prerequisites
-
-swhid-py compiles a Rust extension at install time. You need the Rust toolchain:
-
-```bash
-# Install Rust (if you don't already have it)
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-source "$HOME/.cargo/env"
-
-# Verify
-rustc --version
-```
-
-On macOS you may also need Xcode command line tools (`xcode-select --install`).
-On Debian/Ubuntu, `sudo apt install build-essential pkg-config` covers the C linker
-that Rust needs.
-
 ### From PyPI (once published)
 
 ```bash
@@ -41,6 +24,12 @@ uv pip install swhid-py
 
 ```bash
 uv pip install git+https://github.com/apache/swhid-py.git
+```
+
+This requires the Rust toolchain to be installed. If you don't have it:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 ```
 
 ### From source
@@ -344,7 +333,7 @@ SWHID_CLI=swhid pytest tests/test_conformance.py -v
 git clone https://github.com/apache/swhid-py.git
 cd swhid-py
 uv venv && source .venv/bin/activate
-uv pip install maturin[patchelf] pytest
+uv pip install maturin pytest
 
 # Build + install in dev mode
 maturin develop

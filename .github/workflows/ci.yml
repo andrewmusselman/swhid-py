@@ -43,7 +43,7 @@ jobs:
 
       - name: Build and install
         run: |
-          pip install maturin[patchelf] pytest
+          pip install maturin pytest
           maturin build
           pip install target/wheels/*.whl
 
