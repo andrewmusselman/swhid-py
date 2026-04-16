@@ -115,9 +115,7 @@ impl PySwhid {
     /// Parse a SWHID string such as ``"swh:1:cnt:abc123..."``.
     #[new]
     fn new(swhid_str: &str) -> PyResult<Self> {
-        let inner: swhid::Swhid = swhid_str
-            .parse()
-            .map_err(swhid_err)?;
+        let inner: swhid::Swhid = swhid_str.parse().map_err(swhid_err)?;
         Ok(PySwhid { inner })
     }
 
@@ -191,11 +189,8 @@ impl PyQualifiedSwhid {
     }
 
     fn qualifier_decoded(&self, key: &str) -> Option<String> {
-        self.qualifier_raw(key).map(|v| {
-            percent_decode_str(&v)
-                .decode_utf8_lossy()
-                .into_owned()
-        })
+        self.qualifier_raw(key)
+            .map(|v| percent_decode_str(&v).decode_utf8_lossy().into_owned())
     }
 
     fn qualifier_range(&self, key: &str) -> Option<(u64, Option<u64>)> {
@@ -212,9 +207,7 @@ impl PyQualifiedSwhid {
     /// Parse a qualified SWHID string.
     #[new]
     fn new(s: &str) -> PyResult<Self> {
-        let inner: swhid::QualifiedSwhid = s
-            .parse()
-            .map_err(swhid_err)?;
+        let inner: swhid::QualifiedSwhid = s.parse().map_err(swhid_err)?;
         Ok(PyQualifiedSwhid { inner })
     }
 
@@ -268,22 +261,30 @@ impl PyQualifiedSwhid {
 
     /// Return a new QualifiedSwhid with origin set.
     fn with_origin(&self, url: &str) -> Self {
-        PyQualifiedSwhid { inner: self.inner.clone().with_origin(url) }
+        PyQualifiedSwhid {
+            inner: self.inner.clone().with_origin(url),
+        }
     }
 
     /// Return a new QualifiedSwhid with visit set.
     fn with_visit(&self, id: &PySwhid) -> Self {
-        PyQualifiedSwhid { inner: self.inner.clone().with_visit(id.inner.clone()) }
+        PyQualifiedSwhid {
+            inner: self.inner.clone().with_visit(id.inner.clone()),
+        }
     }
 
     /// Return a new QualifiedSwhid with anchor set.
     fn with_anchor(&self, id: &PySwhid) -> Self {
-        PyQualifiedSwhid { inner: self.inner.clone().with_anchor(id.inner.clone()) }
+        PyQualifiedSwhid {
+            inner: self.inner.clone().with_anchor(id.inner.clone()),
+        }
     }
 
     /// Return a new QualifiedSwhid with path set.
     fn with_path(&self, path: &str) -> Self {
-        PyQualifiedSwhid { inner: self.inner.clone().with_path(path) }
+        PyQualifiedSwhid {
+            inner: self.inner.clone().with_path(path),
+        }
     }
 
     /// Return a new QualifiedSwhid with lines set.
@@ -291,12 +292,17 @@ impl PyQualifiedSwhid {
     fn with_lines(&self, start: u64, end: Option<u64>) -> PyResult<Self> {
         if let Some(e) = end {
             if e < start {
-                return Err(PyValueError::new_err(
-                    format!("lines end ({e}) must not be less than start ({start})")
-                ));
+                return Err(PyValueError::new_err(format!(
+                    "lines end ({e}) must not be less than start ({start})"
+                )));
             }
         }
-        Ok(PyQualifiedSwhid { inner: self.inner.clone().with_lines(swhid::LineRange { start, end }) })
+        Ok(PyQualifiedSwhid {
+            inner: self
+                .inner
+                .clone()
+                .with_lines(swhid::LineRange { start, end }),
+        })
     }
 
     /// Return a new QualifiedSwhid with bytes set.
@@ -304,12 +310,17 @@ impl PyQualifiedSwhid {
     fn with_bytes(&self, start: u64, end: Option<u64>) -> PyResult<Self> {
         if let Some(e) = end {
             if e < start {
-                return Err(PyValueError::new_err(
-                    format!("bytes end ({e}) must not be less than start ({start})")
-                ));
+                return Err(PyValueError::new_err(format!(
+                    "bytes end ({e}) must not be less than start ({start})"
+                )));
             }
         }
-        Ok(PyQualifiedSwhid { inner: self.inner.clone().with_bytes(swhid::ByteRange { start, end }) })
+        Ok(PyQualifiedSwhid {
+            inner: self
+                .inner
+                .clone()
+                .with_bytes(swhid::ByteRange { start, end }),
+        })
     }
 
     fn __str__(&self) -> String {
@@ -423,9 +434,7 @@ fn verify(
     follow_symlinks: bool,
     exclude_suffixes: Option<Vec<String>>,
 ) -> PyResult<bool> {
-    let expected_swhid: swhid::Swhid = expected
-        .parse()
-        .map_err(swhid_err)?;
+    let expected_swhid: swhid::Swhid = expected.parse().map_err(swhid_err)?;
 
     let p = PathBuf::from(path);
     let owned_path = path.to_string();
