@@ -11,6 +11,7 @@ name = "swhid_py"
 crate-type = ["cdylib"]
 
 [dependencies]
+percent-encoding = "2"
 pyo3 = { version = "0.23", features = ["extension-module"] }
 swhid = "0.2"
 

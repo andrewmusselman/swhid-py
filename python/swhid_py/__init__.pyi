@@ -27,22 +27,27 @@ using PyO3, giving you native-speed hashing with a Pythonic API.
 
 from __future__ import annotations
 
-import enum
 from typing import Optional
 
-class ObjectType(enum.IntEnum):
+class ObjectType:
     """SWHID object type tag."""
 
-    Content = 0
+    Content: ObjectType
     """File content (``cnt``)."""
-    Directory = 1
+    Directory: ObjectType
     """Directory tree (``dir``)."""
-    Revision = 2
+    Revision: ObjectType
     """VCS commit / changeset (``rev``)."""
-    Release = 3
+    Release: ObjectType
     """VCS annotated tag / release (``rel``)."""
-    Snapshot = 4
+    Snapshot: ObjectType
     """Repository snapshot (``snp``)."""
+
+    def __eq__(self, other: object) -> bool: ...
+    def __ne__(self, other: object) -> bool: ...
+    def __hash__(self) -> int: ...
+    def __int__(self) -> int: ...
+    def __repr__(self) -> str: ...
 
     def tag(self) -> str:
         """Return the three-letter SWHID tag (e.g. ``"cnt"``)."""
@@ -110,8 +115,46 @@ class QualifiedSwhid:
         """The core SWHID (without qualifiers)."""
         ...
 
+    @property
+    def origin(self) -> Optional[str]:
+        """The origin URL, or ``None``."""
+        ...
+
+    @property
+    def visit(self) -> Optional[Swhid]:
+        """The visit SWHID, or ``None``."""
+        ...
+
+    @property
+    def anchor(self) -> Optional[Swhid]:
+        """The anchor SWHID, or ``None``."""
+        ...
+
+    @property
+    def path(self) -> Optional[str]:
+        """The path qualifier, or ``None``."""
+        ...
+
+    @property
+    def lines(self) -> Optional[tuple[int, Optional[int]]]:
+        """The lines qualifier as ``(start, end)`` or ``(start, None)``, or ``None``."""
+        ...
+
+    @property
+    def bytes(self) -> Optional[tuple[int, Optional[int]]]:
+        """The bytes qualifier as ``(start, end)`` or ``(start, None)``, or ``None``."""
+        ...
+
     def with_origin(self, url: str) -> QualifiedSwhid:
         """Return a copy with the ``origin`` qualifier set."""
+        ...
+
+    def with_visit(self, id: Swhid) -> QualifiedSwhid:
+        """Return a copy with the ``visit`` qualifier set."""
+        ...
+
+    def with_anchor(self, id: Swhid) -> QualifiedSwhid:
+        """Return a copy with the ``anchor`` qualifier set."""
         ...
 
     def with_path(self, path: str) -> QualifiedSwhid:
@@ -119,11 +162,19 @@ class QualifiedSwhid:
         ...
 
     def with_lines(self, start: int, end: Optional[int] = None) -> QualifiedSwhid:
-        """Return a copy with the ``lines`` qualifier set."""
+        """Return a copy with the ``lines`` qualifier set.
+
+        Raises:
+            ValueError: If *end* is less than *start*.
+        """
         ...
 
     def with_bytes(self, start: int, end: Optional[int] = None) -> QualifiedSwhid:
-        """Return a copy with the ``bytes`` qualifier set."""
+        """Return a copy with the ``bytes`` qualifier set.
+
+        Raises:
+            ValueError: If *end* is less than *start*.
+        """
         ...
 
     def __str__(self) -> str: ...
@@ -150,7 +201,7 @@ def content_id_from_file(path: str) -> Swhid:
         path: Filesystem path to the file.
 
     Raises:
-        ValueError: If the file cannot be read.
+        OSError: If the file cannot be read.
     """
     ...
 
@@ -173,11 +224,16 @@ def directory_id(
         exclude_suffixes: File suffixes to skip (e.g. ``[".pyc", ".o"]``).
 
     Raises:
-        ValueError: If the directory cannot be traversed.
+        OSError: If the directory cannot be traversed.
     """
     ...
 
-def verify(path: str, expected: str) -> bool:
+def verify(
+    path: str,
+    expected: str,
+    follow_symlinks: bool = False,
+    exclude_suffixes: Optional[list[str]] = None,
+) -> bool:
     """
     Verify that a file or directory matches an expected SWHID.
 
@@ -187,11 +243,14 @@ def verify(path: str, expected: str) -> bool:
     Args:
         path: Filesystem path to a file or directory.
         expected: The SWHID string to compare against.
+        follow_symlinks: Whether to follow symlinks (default ``False``, directories only).
+        exclude_suffixes: File suffixes to skip (directories only).
 
     Returns:
         ``True`` if the computed SWHID matches, ``False`` otherwise.
 
     Raises:
-        ValueError: If *expected* is not a valid SWHID or *path* cannot be read.
+        ValueError: If *expected* is not a valid SWHID.
+        OSError: If *path* cannot be read.
     """
     ...
