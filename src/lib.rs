@@ -18,8 +18,8 @@
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use swhid::error::SwhidError;
 use std::path::PathBuf;
+use swhid::error::SwhidError;
 
 // ---------------------------------------------------------------------------
 // ObjectType enum
@@ -50,13 +50,16 @@ impl PyObjectType {
     }
 
     fn __repr__(&self) -> String {
-        format!("ObjectType.{}", match self {
-            PyObjectType::Content => "Content",
-            PyObjectType::Directory => "Directory",
-            PyObjectType::Revision => "Revision",
-            PyObjectType::Release => "Release",
-            PyObjectType::Snapshot => "Snapshot",
-        })
+        format!(
+            "ObjectType.{}",
+            match self {
+                PyObjectType::Content => "Content",
+                PyObjectType::Directory => "Directory",
+                PyObjectType::Revision => "Revision",
+                PyObjectType::Release => "Release",
+                PyObjectType::Snapshot => "Snapshot",
+            }
+        )
     }
 }
 
