@@ -42,6 +42,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Build and install
+        shell: bash
         run: |
           pip install maturin pytest
           maturin build
