@@ -6,9 +6,11 @@ Wraps the **Rust reference implementation** via [PyO3](https://pyo3.rs), giving 
 
 ## Why this exists
 
-The standard Python library for SWHIDs (`swh.model`) is **GPL-3.0 licensed**, which is incompatible with Apache-licensed projects. The alternative [`miniswhid`](https://pypi.org/project/miniswhid/) package doesn't support revision, release, or snapshot identifiers.
+The standard Python library for SWHIDs (`swh.model`) is **GPL-3.0 licensed**, which is incompatible with Apache-licensed projects. The alternative [`miniswhid`](https://pypi.org/project/miniswhid/) package covers content and directory hashing but does not support qualified identifiers.
 
-This package wraps the MIT-licensed Rust reference implementation directly, sidestepping the licensing issue while getting the canonical, specification-compliant implementation.
+This package wraps the MIT-licensed Rust reference implementation directly, sidestepping the licensing issue while getting the canonical, specification-compliant implementation. It currently exposes content and directory hashing with full qualified SWHID support (origin, visit, anchor, path, lines, bytes).
+
+Revision, release, and snapshot hashing require Git integration. The upstream Rust crate provides this behind a `git` feature flag, but it depends on `libgit2` (GPL-2.0) — the same licensing constraint that likely shaped `miniswhid`'s scope. If a permissively licensed alternative (e.g. [gitoxide](https://github.com/GitoxideLabs/gitoxide)) is wired into `swhid-rs` in the future, adding those identifiers here would be straightforward.
 
 **Context:** [apache/tooling-trusted-releases#1154](https://github.com/apache/tooling-trusted-releases/issues/1154)
 
