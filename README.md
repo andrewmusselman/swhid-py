@@ -6,11 +6,18 @@ Wraps the **Rust reference implementation** via [PyO3](https://pyo3.rs), giving 
 
 ## Why this exists
 
-The standard Python library for SWHIDs (`swh.model`) is **GPL-3.0 licensed**, which is incompatible with Apache-licensed projects. The alternative [`miniswhid`](https://pypi.org/project/miniswhid/) package covers content and directory hashing but does not support qualified identifiers.
+The standard Python library for SWHIDs (`swh.model`) is **GPL-3.0 licensed**, which is incompatible with Apache-licensed projects. The alternative [`miniswhid`](https://pypi.org/project/miniswhid/) package covers content and directory hashing but does not support qualified identifiers or VCS integration.
 
-This package wraps the MIT-licensed Rust reference implementation directly, sidestepping the licensing issue while getting the canonical, specification-compliant implementation. It currently exposes content and directory hashing with full qualified SWHID support (origin, visit, anchor, path, lines, bytes).
+This package wraps the MIT-licensed Rust reference implementation directly, sidestepping the licensing issue while getting the canonical, specification-compliant implementation. It supports the **full SWHID v1.2 specification**:
 
-Revision, release, and snapshot hashing require Git integration. The upstream Rust crate provides this behind a `git` feature flag, but it depends on `libgit2` (GPL-2.0) — the same licensing constraint that likely shaped `miniswhid`'s scope. If a permissively licensed alternative (e.g. [gitoxide](https://github.com/GitoxideLabs/gitoxide)) is wired into `swhid-rs` in the future, adding those identifiers here would be straightforward.
+- **Content** (`cnt`) — file hashing, Git blob compatible
+- **Directory** (`dir`) — Merkle tree hashing, format-agnostic archive comparison
+- **Revision** (`rev`) — Git commit identification
+- **Release** (`rel`) — Git annotated tag identification
+- **Snapshot** (`snp`) — full repository state capture
+- **Qualified identifiers** — origin, visit, anchor, path, lines, bytes
+
+VCS integration (revision, release, snapshot) uses [gitoxide](https://github.com/GitoxideLabs/gitoxide) (MIT/Apache-2.0) instead of libgit2 (GPL-2.0), keeping the entire dependency chain permissively licensed.
 
 **Context:** [apache/tooling-trusted-releases#1154](https://github.com/apache/tooling-trusted-releases/issues/1154)
 
@@ -74,6 +81,31 @@ print(parsed.object_type)   # ObjectType.Content
 print(parsed.digest_hex)    # b45ef6fec89518d314f546fd6c3025367b721684
 print(parsed.digest_bytes()) # b'\xb4^...' (20 bytes)
 ```
+
+### VCS integration
+
+Compute revision, release, and snapshot SWHIDs directly from Git repositories:
+
+```python
+from swhid_py import revision_id, release_id, snapshot_id
+
+# Revision SWHID for HEAD
+rev = revision_id("/path/to/repo")
+print(rev)  # swh:1:rev:...
+
+# Revision SWHID for a specific commit
+rev = revision_id("/path/to/repo", "a1b2c3d4...")
+
+# Release SWHID for an annotated tag
+rel = release_id("/path/to/repo", "v1.0.0")
+print(rel)  # swh:1:rel:...
+
+# Snapshot SWHID — captures all branches and tags
+snp = snapshot_id("/path/to/repo")
+print(snp)  # swh:1:snp:...
+```
+
+These functions use [gitoxide](https://github.com/GitoxideLabs/gitoxide) (MIT/Apache-2.0) as the Git backend — no GPL dependencies anywhere in the chain.
 
 ## Using swhid-py in your project
 
@@ -296,6 +328,17 @@ Swhid('swh:1:cnt:b45ef6fec89518d314f546fd6c3025367b721684')
 True
 >>> len({a, b})
 1
+
+# VCS integration — compute revision and snapshot SWHIDs
+>>> from swhid_py import revision_id, snapshot_id
+>>> rev = revision_id(".")       # HEAD of current repo
+>>> rev.object_type
+ObjectType.Revision
+>>> rev.object_type.tag()
+'rev'
+>>> snp = snapshot_id(".")       # all branches + tags
+>>> snp.object_type.tag()
+'snp'
 ```
 
 ## ATR use-cases
@@ -309,6 +352,19 @@ Many projects release as both `.tar.gz` and `.zip`. The directory SWHID is compu
 ### Git commit ↔ source archive verification
 
 Compute the directory SWHID of an unpacked source archive and compare it against the tree SWHID of the tagged Git commit. If they match, the archive provably corresponds to that commit.
+
+### Revision and snapshot tracking
+
+Compute revision SWHIDs for specific commits and snapshot SWHIDs for the full repository state. These can be stored alongside release artifacts to provide cryptographic proof of which exact repository state produced the release:
+
+```python
+from swhid_py import revision_id, snapshot_id
+
+rev = revision_id("/path/to/repo", "v1.0.0-rc1-commit-hash")
+snp = snapshot_id("/path/to/repo")
+print(f"Release built from revision: {rev}")
+print(f"Repository state at release: {snp}")
+```
 
 ## Conformance testing
 
@@ -376,7 +432,7 @@ The Rust side (`src/lib.rs`) is pure glue — it calls into the `swhid` crate's 
 
 ## License
 
-Apache-2.0 (this wrapper). The upstream `swhid-rs` crate is MIT-licensed.
+Apache-2.0 (this wrapper). The upstream `swhid-rs` crate is MIT-licensed. VCS integration uses [gitoxide](https://github.com/GitoxideLabs/gitoxide) (MIT/Apache-2.0) — no GPL dependencies.
 
 ## References
 

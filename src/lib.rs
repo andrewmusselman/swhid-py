@@ -15,17 +15,23 @@
 // specific language governing permissions and limitations
 // under the License.
 
-use percent_encoding::percent_decode_str;
 use pyo3::exceptions::{PyOSError, PyValueError};
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
 use std::path::PathBuf;
 use swhid::error::SwhidError;
 
+#[cfg(feature = "gitoxide")]
+use std::collections::HashMap;
+
+// ---------------------------------------------------------------------------
+// Error helpers
+// ---------------------------------------------------------------------------
+
 fn swhid_err(e: SwhidError) -> PyErr {
-    match e {
-        SwhidError::Io(io_err) => PyOSError::new_err(io_err.to_string()),
-        other => PyValueError::new_err(other.to_string()),
+    match &e {
+        SwhidError::Io(_) => PyOSError::new_err(e.to_string()),
+        _ => PyValueError::new_err(e.to_string()),
     }
 }
 
@@ -55,10 +61,6 @@ impl PyObjectType {
             PyObjectType::Release => "rel",
             PyObjectType::Snapshot => "snp",
         }
-    }
-
-    fn __hash__(&self) -> u64 {
-        self.clone() as u64
     }
 
     fn __repr__(&self) -> String {
@@ -115,7 +117,9 @@ impl PySwhid {
     /// Parse a SWHID string such as ``"swh:1:cnt:abc123..."``.
     #[new]
     fn new(swhid_str: &str) -> PyResult<Self> {
-        let inner: swhid::Swhid = swhid_str.parse().map_err(swhid_err)?;
+        let inner: swhid::Swhid = swhid_str
+            .parse()
+            .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?;
         Ok(PySwhid { inner })
     }
 
@@ -152,7 +156,7 @@ impl PySwhid {
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
         let mut h = DefaultHasher::new();
-        self.inner.hash(&mut h);
+        self.inner.to_string().hash(&mut h);
         h.finish()
     }
 }
@@ -168,46 +172,14 @@ pub struct PyQualifiedSwhid {
     inner: swhid::QualifiedSwhid,
 }
 
-// QualifiedSwhid stores origin, visit, anchor, path, lines, and bytes as
-// private fields with no public getters — only core() is exposed.  As a
-// workaround we serialise to the canonical string form and re-parse the
-// qualifier we need.  This is correct (';' in values is percent-encoded, so
-// splitting on ';' is safe) but costs an allocation per access.  If swhid-rs
-// gains public getter methods, these helpers should be replaced.
-impl PyQualifiedSwhid {
-    fn qualifier_raw(&self, key: &str) -> Option<String> {
-        let s = self.inner.to_string();
-        let (_, rest) = s.split_once(';')?;
-        for item in rest.split(';') {
-            if let Some((k, v)) = item.split_once('=') {
-                if k == key {
-                    return Some(v.to_string());
-                }
-            }
-        }
-        None
-    }
-
-    fn qualifier_decoded(&self, key: &str) -> Option<String> {
-        self.qualifier_raw(key)
-            .map(|v| percent_decode_str(&v).decode_utf8_lossy().into_owned())
-    }
-
-    fn qualifier_range(&self, key: &str) -> Option<(u64, Option<u64>)> {
-        let v = self.qualifier_raw(key)?;
-        match v.split_once('-') {
-            Some((a, b)) => Some((a.parse().ok()?, Some(b.parse().ok()?))),
-            None => Some((v.parse().ok()?, None)),
-        }
-    }
-}
-
 #[pymethods]
 impl PyQualifiedSwhid {
     /// Parse a qualified SWHID string.
     #[new]
     fn new(s: &str) -> PyResult<Self> {
-        let inner: swhid::QualifiedSwhid = s.parse().map_err(swhid_err)?;
+        let inner: swhid::QualifiedSwhid = s
+            .parse()
+            .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?;
         Ok(PyQualifiedSwhid { inner })
     }
 
@@ -219,128 +191,40 @@ impl PyQualifiedSwhid {
         }
     }
 
-    /// The origin URL, or ``None``.
-    #[getter]
-    fn origin(&self) -> Option<String> {
-        self.qualifier_decoded("origin")
-    }
-
-    /// The visit SWHID, or ``None``.
-    #[getter]
-    fn visit(&self) -> Option<PySwhid> {
-        self.qualifier_raw("visit")
-            .and_then(|v| v.parse::<swhid::Swhid>().ok())
-            .map(|inner| PySwhid { inner })
-    }
-
-    /// The anchor SWHID, or ``None``.
-    #[getter]
-    fn anchor(&self) -> Option<PySwhid> {
-        self.qualifier_raw("anchor")
-            .and_then(|v| v.parse::<swhid::Swhid>().ok())
-            .map(|inner| PySwhid { inner })
-    }
-
-    /// The path qualifier, or ``None``.
-    #[getter]
-    fn path(&self) -> Option<String> {
-        self.qualifier_decoded("path")
-    }
-
-    /// The lines qualifier as ``(start, end)`` or ``(start, None)``, or ``None``.
-    #[getter]
-    fn lines(&self) -> Option<(u64, Option<u64>)> {
-        self.qualifier_range("lines")
-    }
-
-    /// The bytes qualifier as ``(start, end)`` or ``(start, None)``, or ``None``.
-    #[getter]
-    fn bytes(&self) -> Option<(u64, Option<u64>)> {
-        self.qualifier_range("bytes")
-    }
-
     /// Return a new QualifiedSwhid with origin set.
-    fn with_origin(&self, url: &str) -> Self {
-        PyQualifiedSwhid {
-            inner: self.inner.clone().with_origin(url),
-        }
-    }
-
-    /// Return a new QualifiedSwhid with visit set.
-    fn with_visit(&self, id: &PySwhid) -> Self {
-        PyQualifiedSwhid {
-            inner: self.inner.clone().with_visit(id.inner.clone()),
-        }
-    }
-
-    /// Return a new QualifiedSwhid with anchor set.
-    fn with_anchor(&self, id: &PySwhid) -> Self {
-        PyQualifiedSwhid {
-            inner: self.inner.clone().with_anchor(id.inner.clone()),
-        }
+    fn with_origin(&self, url: &str) -> PyResult<Self> {
+        let q = self.inner.clone().with_origin(url);
+        Ok(PyQualifiedSwhid { inner: q })
     }
 
     /// Return a new QualifiedSwhid with path set.
-    fn with_path(&self, path: &str) -> Self {
-        PyQualifiedSwhid {
-            inner: self.inner.clone().with_path(path),
-        }
+    fn with_path(&self, path: &str) -> PyResult<Self> {
+        let q = self.inner.clone().with_path(path);
+        Ok(PyQualifiedSwhid { inner: q })
     }
 
     /// Return a new QualifiedSwhid with lines set.
     #[pyo3(signature = (start, end=None))]
     fn with_lines(&self, start: u64, end: Option<u64>) -> PyResult<Self> {
-        if let Some(e) = end {
-            if e < start {
-                return Err(PyValueError::new_err(format!(
-                    "lines end ({e}) must not be less than start ({start})"
-                )));
-            }
-        }
-        Ok(PyQualifiedSwhid {
-            inner: self
-                .inner
-                .clone()
-                .with_lines(swhid::LineRange { start, end }),
-        })
+        let range = swhid::LineRange { start, end };
+        let q = self.inner.clone().with_lines(range);
+        Ok(PyQualifiedSwhid { inner: q })
     }
 
     /// Return a new QualifiedSwhid with bytes set.
     #[pyo3(signature = (start, end=None))]
     fn with_bytes(&self, start: u64, end: Option<u64>) -> PyResult<Self> {
-        if let Some(e) = end {
-            if e < start {
-                return Err(PyValueError::new_err(format!(
-                    "bytes end ({e}) must not be less than start ({start})"
-                )));
-            }
-        }
-        Ok(PyQualifiedSwhid {
-            inner: self
-                .inner
-                .clone()
-                .with_bytes(swhid::ByteRange { start, end }),
-        })
+        let range = swhid::ByteRange { start, end };
+        let q = self.inner.clone().with_bytes(range);
+        Ok(PyQualifiedSwhid { inner: q })
     }
 
     fn __str__(&self) -> String {
         self.inner.to_string()
     }
 
-    fn __eq__(&self, other: &PyQualifiedSwhid) -> bool {
-        self.inner.to_string() == other.inner.to_string()
-    }
-
-    fn __hash__(&self) -> u64 {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        let mut h = DefaultHasher::new();
-        self.inner.to_string().hash(&mut h);
-        h.finish()
-    }
-
     fn __repr__(&self) -> String {
-        format!("QualifiedSwhid(\"{}\")", self.inner)
+        format!("QualifiedSwhid('{}')", self.inner)
     }
 }
 
@@ -349,14 +233,6 @@ impl PyQualifiedSwhid {
 // ---------------------------------------------------------------------------
 
 /// Compute the SWHID for raw byte content (file data).
-///
-/// This hashes data as a Git blob, producing a ``swh:1:cnt:…`` identifier.
-///
-/// Args:
-///     data: The raw bytes of the file.
-///
-/// Returns:
-///     A ``Swhid`` object.
 #[pyfunction]
 fn content_id(data: &[u8]) -> PySwhid {
     let inner = swhid::Content::from_bytes(data).swhid();
@@ -364,39 +240,17 @@ fn content_id(data: &[u8]) -> PySwhid {
 }
 
 /// Compute the SWHID for a file on disk.
-///
-/// Args:
-///     path: Filesystem path to the file.
-///
-/// Returns:
-///     A ``Swhid`` object.
 #[pyfunction]
-fn content_id_from_file(py: Python<'_>, path: &str) -> PyResult<PySwhid> {
-    let owned = path.to_string();
-    let inner = py.allow_threads(|| {
-        let data = std::fs::read(&owned)
-            .map_err(|e| PyOSError::new_err(format!("cannot read {owned}: {e}")))?;
-        Ok::<_, PyErr>(swhid::Content::from_bytes(data).swhid())
-    })?;
-    Ok(PySwhid { inner })
+fn content_id_from_file(path: &str) -> PyResult<PySwhid> {
+    let data =
+        std::fs::read(path).map_err(|e| PyOSError::new_err(format!("cannot read {path}: {e}")))?;
+    Ok(content_id(&data))
 }
 
 /// Compute the SWHID for a directory tree.
-///
-/// This computes the Merkle hash over the directory following Git's tree
-/// object format, producing a ``swh:1:dir:…`` identifier.
-///
-/// Args:
-///     root: Path to the directory.
-///     follow_symlinks: Whether to follow symlinks (default False).
-///     exclude_suffixes: File suffixes to skip (e.g. ``[".pyc", ".o"]``).
-///
-/// Returns:
-///     A ``Swhid`` object.
 #[pyfunction]
 #[pyo3(signature = (root, follow_symlinks=false, exclude_suffixes=None))]
 fn directory_id(
-    py: Python<'_>,
     root: &str,
     follow_symlinks: bool,
     exclude_suffixes: Option<Vec<String>>,
@@ -406,56 +260,109 @@ fn directory_id(
         follow_symlinks,
         exclude_suffixes: exclude_suffixes.unwrap_or_default(),
     };
-    let inner = py.allow_threads(|| {
-        swhid::DiskDirectoryBuilder::new(&path)
-            .with_options(walk_opts)
-            .swhid()
-            .map_err(swhid_err)
-    })?;
+    let inner = swhid::DiskDirectoryBuilder::new(&path)
+        .with_options(walk_opts)
+        .swhid()
+        .map_err(swhid_err)?;
     Ok(PySwhid { inner })
 }
 
 /// Verify that a file or directory matches an expected SWHID.
-///
-/// Args:
-///     path: Filesystem path to a file or directory.
-///     expected: The SWHID string to compare against.
-///     follow_symlinks: Whether to follow symlinks (default False, directories only).
-///     exclude_suffixes: File suffixes to skip (directories only).
-///
-/// Returns:
-///     ``True`` if the computed SWHID matches, ``False`` otherwise.
 #[pyfunction]
-#[pyo3(signature = (path, expected, follow_symlinks=false, exclude_suffixes=None))]
-fn verify(
-    py: Python<'_>,
-    path: &str,
-    expected: &str,
-    follow_symlinks: bool,
-    exclude_suffixes: Option<Vec<String>>,
-) -> PyResult<bool> {
-    let expected_swhid: swhid::Swhid = expected.parse().map_err(swhid_err)?;
+fn verify(path: &str, expected: &str) -> PyResult<bool> {
+    let expected_swhid: swhid::Swhid = expected
+        .parse()
+        .map_err(|e: SwhidError| PyValueError::new_err(e.to_string()))?;
 
     let p = PathBuf::from(path);
-    let owned_path = path.to_string();
-    let computed = py.allow_threads(|| {
-        if p.is_dir() {
-            let walk_opts = swhid::WalkOptions {
-                follow_symlinks,
-                exclude_suffixes: exclude_suffixes.unwrap_or_default(),
-            };
-            swhid::DiskDirectoryBuilder::new(&p)
-                .with_options(walk_opts)
-                .swhid()
-                .map_err(swhid_err)
-        } else {
-            let data = std::fs::read(&p)
-                .map_err(|e| PyOSError::new_err(format!("cannot read {owned_path}: {e}")))?;
-            Ok(swhid::Content::from_bytes(data).swhid())
-        }
-    })?;
+    let computed = if p.is_dir() {
+        swhid::DiskDirectoryBuilder::new(&p)
+            .swhid()
+            .map_err(swhid_err)?
+    } else {
+        let data = std::fs::read(&p)
+            .map_err(|e| PyOSError::new_err(format!("cannot read {path}: {e}")))?;
+        swhid::Content::from_bytes(data).swhid()
+    };
 
     Ok(computed == expected_swhid)
+}
+
+// ---------------------------------------------------------------------------
+// Git VCS functions (gitoxide backend – MIT/Apache-2.0)
+// ---------------------------------------------------------------------------
+
+/// Compute the revision SWHID for a Git commit.
+///
+/// Args:
+///     repo_path: Path to the Git repository.
+///     commit: Optional commit hash (hex string). If omitted, uses HEAD.
+///
+/// Returns:
+///     A ``Swhid`` object of type ``rev``.
+#[cfg(feature = "gitoxide")]
+#[pyfunction]
+#[pyo3(signature = (repo_path, commit=None))]
+fn revision_id(repo_path: &str, commit: Option<&str>, py: Python<'_>) -> PyResult<PySwhid> {
+    let p = repo_path.to_string();
+    let c = commit.map(|s| s.to_string());
+    py.allow_threads(|| {
+        let repo = swhid::git_gix::open_repo(std::path::Path::new(&p)).map_err(swhid_err)?;
+        let oid = match &c {
+            Some(hex) => gix::ObjectId::from_hex(hex.as_bytes())
+                .map_err(|e| PyValueError::new_err(format!("Invalid commit hash: {e}")))?,
+            None => swhid::git_gix::get_head_commit(&repo).map_err(swhid_err)?,
+        };
+        let inner =
+            swhid::git_gix::revision_swhid(&repo, &oid, &mut HashMap::new()).map_err(swhid_err)?;
+        Ok(PySwhid { inner })
+    })
+}
+
+/// Compute the release SWHID for a Git tag.
+///
+/// Args:
+///     repo_path: Path to the Git repository.
+///     tag: Tag name (e.g. ``"v1.0.0"``).
+///
+/// Returns:
+///     A ``Swhid`` object of type ``rel``.
+#[cfg(feature = "gitoxide")]
+#[pyfunction]
+fn release_id(repo_path: &str, tag: &str, py: Python<'_>) -> PyResult<PySwhid> {
+    let p = repo_path.to_string();
+    let t = format!("refs/tags/{tag}");
+    py.allow_threads(|| {
+        let repo = swhid::git_gix::open_repo(std::path::Path::new(&p)).map_err(swhid_err)?;
+        let reference = repo
+            .find_reference(&t)
+            .map_err(|e| PyValueError::new_err(format!("Tag not found: {e}")))?;
+        let tag_oid = reference
+            .target()
+            .try_id()
+            .ok_or_else(|| PyValueError::new_err("Tag is a symbolic reference, not a direct one"))?
+            .to_owned();
+        let inner = swhid::git_gix::release_swhid(&repo, &tag_oid).map_err(swhid_err)?;
+        Ok(PySwhid { inner })
+    })
+}
+
+/// Compute the snapshot SWHID for a Git repository.
+///
+/// Args:
+///     repo_path: Path to the Git repository.
+///
+/// Returns:
+///     A ``Swhid`` object of type ``snp``.
+#[cfg(feature = "gitoxide")]
+#[pyfunction]
+fn snapshot_id(repo_path: &str, py: Python<'_>) -> PyResult<PySwhid> {
+    let p = repo_path.to_string();
+    py.allow_threads(|| {
+        let repo = swhid::git_gix::open_repo(std::path::Path::new(&p)).map_err(swhid_err)?;
+        let inner = swhid::git_gix::snapshot_swhid(&repo).map_err(swhid_err)?;
+        Ok(PySwhid { inner })
+    })
 }
 
 // ---------------------------------------------------------------------------
@@ -475,5 +382,11 @@ fn swhid_py(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(content_id_from_file, m)?)?;
     m.add_function(wrap_pyfunction!(directory_id, m)?)?;
     m.add_function(wrap_pyfunction!(verify, m)?)?;
+    #[cfg(feature = "gitoxide")]
+    {
+        m.add_function(wrap_pyfunction!(revision_id, m)?)?;
+        m.add_function(wrap_pyfunction!(release_id, m)?)?;
+        m.add_function(wrap_pyfunction!(snapshot_id, m)?)?;
+    }
     Ok(())
 }

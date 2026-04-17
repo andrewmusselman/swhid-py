@@ -27,6 +27,6 @@ Repository = "https://github.com/apache/swhid-py"
 Issues = "https://github.com/apache/swhid-py/issues"
 
 [tool.maturin]
-features = ["pyo3/extension-module"]
+features = ["pyo3/extension-module", "gitoxide"]
 python-source = "python"
 module-name = "swhid_py.swhid_py"

@@ -40,6 +40,15 @@ Quick start::
     parsed = Swhid("swh:1:cnt:b45ef6fec89518d314f546fd6c3025367b721684")
     print(parsed.object_type)           # ObjectType.Content
     print(parsed.digest_hex)            # b45ef6fec89518d...
+
+VCS integration (requires the ``gitoxide`` feature, enabled by default)::
+
+    from swhid_py import revision_id, release_id, snapshot_id
+
+    rev = revision_id("/path/to/repo")           # HEAD commit
+    rev = revision_id("/path/to/repo", "abc123")  # specific commit
+    snp = snapshot_id("/path/to/repo")            # all branches + tags
+    rel = release_id("/path/to/repo", "v1.0.0")  # annotated tag
 """
 
 from .swhid_py import (  # type: ignore[import]
@@ -61,5 +70,14 @@ __all__ = [
     "directory_id",
     "verify",
 ]
+
+# VCS functions are only available when built with the gitoxide (or git) feature.
+# They are enabled by default via pyproject.toml's [tool.maturin] features.
+try:
+    from .swhid_py import revision_id, release_id, snapshot_id  # type: ignore[import]
+
+    __all__ += ["revision_id", "release_id", "snapshot_id"]
+except ImportError:
+    pass
 
 __version__ = "0.1.0"

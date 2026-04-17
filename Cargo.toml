@@ -11,10 +11,14 @@ name = "swhid_py"
 crate-type = ["cdylib"]
 
 [dependencies]
-percent-encoding = "2"
 pyo3 = { version = "0.23", features = ["extension-module"] }
-swhid = "0.2"
+# Once the gitoxide PR is merged upstream, switch to the crates.io release:
+# swhid = { version = "0.3", features = ["gitoxide"] }
+swhid = { git = "https://github.com/andrewmusselman/swhid-rs", branch = "gitoxide-feature-43" }
+# Needed for ObjectId type in revision/release functions
+gix = { version = "0.72", optional = true, default-features = false }
 
 [features]
-default = []
+default = ["gitoxide"]
 git = ["swhid/git"]
+gitoxide = ["swhid/gitoxide", "dep:gix"]
